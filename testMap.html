@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pune City Traffic Signals Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map { height: 100vh; width: 100%; }
+    </style>
+</head>
+<body>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+    var map = L.map('map').setView([18.5204, 73.8567], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    function loadTrafficSignals() {
+        var overpassUrl = "https://overpass-api.de/api/interpreter";
+        var overpassQuery = `
+            [out:json][timeout:25];
+            (
+                node["highway"="traffic_signals"](18.4130,73.7730,18.6270,73.9860); // Expanded bounding box for Pune
+            );
+            out body;
+        `;
+
+        fetch(overpassUrl, {
+            method: 'POST',
+            body: 'data=' + encodeURIComponent(overpassQuery),
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            var trafficIcon = L.icon({
+                iconUrl: 'ticon.png', // Path to the custom icon
+                iconSize: [30, 30], // Size of the icon
+                iconAnchor: [15, 15], // Point of the icon which will correspond to marker's location
+                popupAnchor: [0, -15] // Point from which the popup should open relative to the iconAnchor
+            });
+            let count = 1; // Initialize a counter to number the signals
+
+            if (data.elements.length > 0) {
+                data.elements.forEach(element => {
+                    const lat = element.lat;
+                    const lon = element.lon;
+                    const streetViewLink = `https://www.google.com/maps?q=&layer=c&cbll=${lat},${lon}`; // Street View link
+
+                    L.marker([lat, lon], {icon: trafficIcon}).addTo(map)
+                        .bindPopup(`
+                            <b>Traffic Signal #${count}</b><br>
+                            <a href="${streetViewLink}" target="_blank">Open Street View</a>
+                        `); // Include a link to Street View in the popup
+                    count++; // Increment the counter for each signal
+                });
+            } else {
+                console.log("No traffic signals found in the area.");
+            }
+        })
+        .catch(error => console.error('Error loading traffic signals:', error));
+    }
+
+    loadTrafficSignals();
+</script>
+</body>
+</html>
